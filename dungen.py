@@ -3,9 +3,13 @@ from random import randint, choice
 
 class Dungen:
     CHARS = {
-        'floor': '  ',
-        'wall': chr(9619) + chr(9619),
-        'void': chr(9608) + chr(9608)
+        'start': 's',
+        'end': 'e',
+        'corridor': ' ',
+        'room': chr(183),
+        'wall': chr(9619),
+        'door': '/',
+        'void': chr(9608)
         }
 
     def __init__(self, tile_number=200):
@@ -39,9 +43,9 @@ class Dungen:
             if len(list(self.get_nexts(tile, 1, True))) == 8:
                 yield tile
 
-    def tile(self, coord):
+    def tile(self, coord, name):
         if coord not in self.map:
-            self.map[coord] = self.CHARS['floor']
+            self.map[coord] = name
             self.tile_number -= 1
 
     def sign(self, nbr):
@@ -52,51 +56,57 @@ class Dungen:
 
     def get_path(self, start, end):
         x, y = end[0] - start[0], end[1] - start[1]
-        length = abs(x) + abs(y)
         vector = (self.sign(x), self.sign(y))
         path = [start]
 
-        for _ in range(length):
-            path.append((path[-1][0] + vector[0], path[-1][1] + vector[1]))
+        while path[-1][0] != end[0]:
+            path.append((path[-1][0] + vector[0], path[-1][1]))
+
+        while path[-1][1] != end[1]:
+            path.append((path[-1][0], path[-1][1] + vector[1]))
 
         return path
 
-    def build(self, coord, room, gap):
+    def build(self, coord, name, gap):
         neighbors = list(self.check_nexts(coord, gap))
 
         if neighbors:
             next = choice(neighbors)
-            for path in self.get_path(coord, next):
-                self.tile(path)
+            for i, path in enumerate(self.get_path(coord, next)):
+                self.tile(path, name)
 
-            if room:
+            if name == 'room':
                 for tile in self.get_nexts(next, 1, True):
-                    self.tile(tile)
+                    self.tile(tile, name)
 
             return next
 
     def fork(self, iter, coord):
-        room = False
+        name = self.map[coord]
         for i in range(iter):
-            if room:
+            if name == 'room':
                 gap = 3
             else:
                 gap = 2
 
-            if randint(1, 100) < 10 or i == iter-1:
-                room = True
+            if randint(1, 100) < 60 or i == iter-1:
+                name = 'room'
+                gap = 3
             else:
-                room = False
+                name = 'corridor'
 
-            coord = self.build(coord, room, gap)
+            coord = self.build(coord, name, gap)
 
             if not coord:
                 return
 
+    def door_up(self):
+        pass
+
     def brick_up(self):
         for tile in self.map.copy().keys():
             for coord in self.get_nexts(tile, 1, True):
-                self.map[coord] = self.CHARS['wall']
+                self.map[coord] = 'wall'
 
     def frame_up(self):
         x = [x[0] for x in self.map.keys()]
@@ -108,11 +118,13 @@ class Dungen:
 
     def gen(self):
         coord = (0, 0)
+        self.tile(coord, 'start')
 
         while self.tile_number > 0:
             self.fork(randint(5, 10), coord)
             coord = choice(list(self.map.keys()))
 
+        self.door_up()
         self.brick_up()
         self.frame_up()
 
@@ -121,14 +133,14 @@ class Dungen:
             line = ''
             for x in range(self.frame[0]-1, self.frame[1]+2, 1):
                 if (x, y) in self.map:
-                    line += self.map[(x, y)]
+                    line += self.CHARS[self.map[(x, y)]] * 2
                 else:
-                    line += self.CHARS['void']
+                    line += self.CHARS['void'] * 2
 
             print(line)
 
         print("\nNumber of tiles: {}\n".format(
-            len([x for x in self.map.values() if x == self.CHARS['floor']])))
+            len([x for x in self.map.values() if x != 'wall'])))
 
 
 if __name__ == "__main__":
