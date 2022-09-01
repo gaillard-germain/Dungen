@@ -3,9 +3,9 @@ from random import randint, choice
 
 class Dungen:
     CHARS = {
-        'floor': ' ',
-        'wall': '#',
-        'void': chr(9608)
+        'floor': '  ',
+        'wall': chr(9619) + chr(9619),
+        'void': chr(9608) + chr(9608)
         }
 
     def __init__(self, tile_number=200):
@@ -113,7 +113,7 @@ class Dungen:
             self.fork(randint(5, 10), coord)
             coord = choice(list(self.map.keys()))
 
-        # self.brick_up()
+        self.brick_up()
         self.frame_up()
 
     def display(self):
