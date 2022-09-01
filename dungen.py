@@ -128,7 +128,7 @@ class Dungen:
             print(line)
 
         print("\nNumber of tiles: {}\n".format(
-            len([x for x in self.map.values() if x == ' '])))
+            len([x for x in self.map.values() if x == self.CHARS['floor']])))
 
 
 if __name__ == "__main__":
