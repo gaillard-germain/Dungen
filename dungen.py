@@ -5,7 +5,7 @@ class Dungen:
     CHARS = {
         'floor': ' ',
         'wall': '#',
-        'void': '.'
+        'void': chr(9608)
         }
 
     def __init__(self, tile_number=200):
@@ -13,19 +13,18 @@ class Dungen:
         self.tile_number = tile_number
         self.frame = [0, 0, 0, 0]
 
-    def get_nexts(self, point, diag=False, gap=2):
-        x, y = point
-        delta = gap
+    def get_nexts(self, coord, gap, diag=False):
+        x, y = coord
 
         if diag:
-            for n in range(-delta, delta*2, delta):
-                for m in range(-delta, delta*2, delta):
+            for n in range(-gap, gap*2, gap):
+                for m in range(-gap, gap*2, gap):
                     if m or n:
                         coord = (x + m, y + n)
                         if coord not in self.map:
                             yield(coord)
         else:
-            for i in (-delta, delta):
+            for i in (-gap, gap):
                 coord_x = (x+i, y)
                 coord_y = (x, y+i)
 
@@ -35,50 +34,68 @@ class Dungen:
                 if coord_y not in self.map:
                     yield (x, y+i)
 
-    def check_nexts(self, coord):
-        for tile in self.get_nexts(coord):
-            if len(list(self.get_nexts(tile, True, 1))) == 8:
+    def check_nexts(self, coord, gap):
+        for tile in self.get_nexts(coord, gap):
+            if len(list(self.get_nexts(tile, 1, True))) == 8:
                 yield tile
 
     def tile(self, coord):
-        self.map[coord] = self.CHARS['floor']
-        self.tile_number -= 1
+        if coord not in self.map:
+            self.map[coord] = self.CHARS['floor']
+            self.tile_number -= 1
 
-    def build(self, coord, room=False):
-        neighbors = list(self.check_nexts(coord))
+    def sign(self, nbr):
+        if not nbr:
+            return nbr
+        else:
+            return int(nbr / abs(nbr))
 
-        if neighbors and self.tile_number > 0:
+    def get_path(self, start, end):
+        x, y = end[0] - start[0], end[1] - start[1]
+        length = abs(x) + abs(y)
+        vector = (self.sign(x), self.sign(y))
+        path = [start]
+
+        for _ in range(length):
+            path.append((path[-1][0] + vector[0], path[-1][1] + vector[1]))
+
+        return path
+
+    def build(self, coord, room, gap):
+        neighbors = list(self.check_nexts(coord, gap))
+
+        if neighbors:
             next = choice(neighbors)
-            self.tile(next)
+            for path in self.get_path(coord, next):
+                self.tile(path)
 
             if room:
-                room = self.get_nexts(next, True, 1)
-                if room:
-                    for tile in room:
-                        if self.tile_number:
-                            self.tile(tile)
-            else:
-                path = (int((coord[0] + next[0]) / 2),
-                        int((coord[1] + next[1]) / 2))
-                self.tile(path)
+                for tile in self.get_nexts(next, 1, True):
+                    self.tile(tile)
 
             return next
 
     def fork(self, iter, coord):
+        room = False
         for i in range(iter):
-            room = False
+            if room:
+                gap = 3
+            else:
+                gap = 2
 
             if randint(1, 100) < 10 or i == iter-1:
                 room = True
+            else:
+                room = False
 
-            coord = self.build(coord, room)
+            coord = self.build(coord, room, gap)
 
             if not coord:
                 return
 
     def brick_up(self):
         for tile in self.map.copy().keys():
-            for coord in self.get_nexts(tile, True, 1):
+            for coord in self.get_nexts(tile, 1, True):
                 self.map[coord] = self.CHARS['wall']
 
     def frame_up(self):
@@ -91,13 +108,12 @@ class Dungen:
 
     def gen(self):
         coord = (0, 0)
-        self.tile(coord)
 
         while self.tile_number > 0:
             self.fork(randint(5, 10), coord)
             coord = choice(list(self.map.keys()))
 
-        self.brick_up()
+        # self.brick_up()
         self.frame_up()
 
     def display(self):
