@@ -1,52 +1,62 @@
-from random import randint, choice
+from random import randint, choice, randrange
+from viewer import Viewer
 
 
 class Dungen:
-    CHARS = {
-        'start': 's',
-        'end': 'e',
-        'corridor': ' ',
-        'room': chr(183),
-        'wall': chr(9619),
-        'door': '/',
-        'void': chr(9608)
-        }
+    def __init__(self):
+        self.tiles = {}
 
-    def __init__(self, tile_number=200):
-        self.map = {}
-        self.tile_number = tile_number
-        self.frame = [0, 0, 0, 0]
-
-    def get_nexts(self, coord, gap, diag=False):
-        x, y = coord
+    def get_neighbors(self, point, gap, diag=False):
+        x, y = point
 
         if diag:
-            for n in range(-gap, gap*2, gap):
-                for m in range(-gap, gap*2, gap):
-                    if m or n:
-                        coord = (x + m, y + n)
-                        if coord not in self.map:
-                            yield(coord)
+            for i in range(-gap, gap*2, gap):
+                for j in range(-gap, gap*2, gap):
+                    yield (x + j, y + i)
         else:
-            for i in (-gap, gap):
-                coord_x = (x+i, y)
-                coord_y = (x, y+i)
-
-                if coord_x not in self.map:
-                    yield (x+i, y)
-
-                if coord_y not in self.map:
+            for i in range(-gap, gap*2, gap):
+                yield (x+i, y)
+                if i:
                     yield (x, y+i)
 
-    def check_nexts(self, coord, gap):
-        for tile in self.get_nexts(coord, gap):
-            if len(list(self.get_nexts(tile, 1, True))) == 8:
-                yield tile
+    def get_tilables(self, point, gap, diag=False):
+        for point in self.get_neighbors(point, gap, diag):
+            if point not in self.tiles:
+                yield point
 
-    def tile(self, coord, name):
-        if coord not in self.map:
-            self.map[coord] = name
-            self.tile_number -= 1
+    def get_tiles(self, name, excluded=False):
+        for k, v in self.tiles.items():
+            if excluded:
+                if v != name:
+                    yield k
+            else:
+                if v == name:
+                    yield k
+
+    def tile_up(self, point, name):
+        self.tiles[point] = name
+
+    def brick_up(self):
+        for i in list(self.get_tiles('wall', True)):
+            for j in self.get_tilables(i, 1, True):
+                self.tiles[j] = 'wall'
+
+    def create_room(self, point):
+        for i in range(randint(1, 6)):
+            for j in self.get_tilables(point, 1, True):
+                if j == point:
+                    self.tile_up(j, 'center')
+                else:
+                    self.tile_up(j, 'floor')
+
+            nexts = list(self.get_tilables(point, 3))
+
+            if nexts:
+                point = choice(nexts)
+            else:
+                break
+
+        self.brick_up()
 
     def sign(self, nbr):
         if not nbr:
@@ -54,96 +64,53 @@ class Dungen:
         else:
             return int(nbr / abs(nbr))
 
-    def get_path(self, start, end):
-        x, y = end[0] - start[0], end[1] - start[1]
+    def get_path(self, point1, point2):
+        x, y = point2[0] - point1[0], point2[1] - point1[1]
         vector = (self.sign(x), self.sign(y))
-        path = [start]
+        path = [point1]
 
-        while path[-1][0] != end[0]:
+        while path[-1][0] != point2[0]:
             path.append((path[-1][0] + vector[0], path[-1][1]))
 
-        while path[-1][1] != end[1]:
+        while path[-1][1] != point2[1]:
             path.append((path[-1][0], path[-1][1] + vector[1]))
+
+        path.remove(point1)
+        path.remove(point2)
 
         return path
 
-    def build(self, coord, name, gap):
-        neighbors = list(self.check_nexts(coord, gap))
-
-        if neighbors:
-            next = choice(neighbors)
-            for i, path in enumerate(self.get_path(coord, next)):
-                self.tile(path, name)
-
-            if name == 'room':
-                for tile in self.get_nexts(next, 1, True):
-                    self.tile(tile, name)
-
-            return next
-
-    def fork(self, iter, coord):
-        name = self.map[coord]
-        for i in range(iter):
-            if name == 'room':
-                gap = 3
+    def create_corridor(self, point1, point2):
+        path = self.get_path(point1, point2)
+        for i, j in enumerate(path):
+            if i == int((len(path)-1) / 2) and i != 1:
+                self.tiles[j] = 'center'
             else:
-                gap = 2
+                self.tiles[j] = 'floor'
 
-            if randint(1, 100) < 60 or i == iter-1:
-                name = 'room'
-                gap = 3
-            else:
-                name = 'corridor'
+    def gen(self, room_num, cave=False):
+        point = (0, 0)
+        while room_num:
+            self.create_room(point)
+            nexts = None
 
-            coord = self.build(coord, name, gap)
-
-            if not coord:
-                return
-
-    def door_up(self):
-        pass
-
-    def brick_up(self):
-        for tile in self.map.copy().keys():
-            for coord in self.get_nexts(tile, 1, True):
-                self.map[coord] = 'wall'
-
-    def frame_up(self):
-        x = [x[0] for x in self.map.keys()]
-        y = [y[1] for y in self.map.keys()]
-        self.frame[0] = min(x)
-        self.frame[1] = max(x)
-        self.frame[2] = min(y)
-        self.frame[3] = max(y)
-
-    def gen(self):
-        coord = (0, 0)
-        self.tile(coord, 'start')
-
-        while self.tile_number > 0:
-            self.fork(randint(5, 10), coord)
-            coord = choice(list(self.map.keys()))
-
-        self.door_up()
-        self.brick_up()
-        self.frame_up()
-
-    def display(self):
-        for y in range(self.frame[2]-1, self.frame[3]+2, 1):
-            line = ''
-            for x in range(self.frame[0]-1, self.frame[1]+2, 1):
-                if (x, y) in self.map:
-                    line += self.CHARS[self.map[(x, y)]] * 2
+            while not nexts:
+                fork = choice(list(self.get_tiles('center')))
+                if cave:
+                    corridor_len = randrange(4, 16, 2)
                 else:
-                    line += self.CHARS['void'] * 2
+                    corridor_len = 4
+                nexts = list(self.get_tilables(fork, corridor_len))
 
-            print(line)
+            point = choice(nexts)
+            if room_num > 1:
+                self.create_corridor(fork, point)
+            room_num -= 1
 
-        print("\nNumber of tiles: {}\n".format(
-            len([x for x in self.map.values() if x != 'wall'])))
+        return self.tiles
 
 
 if __name__ == "__main__":
-    dungen = Dungen(300)
-    dungen.gen()
-    dungen.display()
+    viewer = Viewer()
+    dungeon = Dungen().gen(10, True)
+    viewer.display(dungeon)
