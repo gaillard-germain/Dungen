@@ -2,7 +2,7 @@ class Viewer:
     CHARS = {
         'floor': ' ',
         'center': ' ',
-        'door': '/',
+        'door': chr(9617),
         'wall': chr(9619),
         'void': chr(9608)
         }

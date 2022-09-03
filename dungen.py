@@ -1,10 +1,11 @@
-from random import randint, choice, randrange
+from random import randint, choice
 from viewer import Viewer
 
 
 class Dungen:
     def __init__(self):
         self.tiles = {}
+        self.room_num = 0
 
     def get_neighbors(self, point, gap, diag=False):
         x, y = point
@@ -42,7 +43,9 @@ class Dungen:
                 self.tiles[j] = 'wall'
 
     def create_room(self, point):
-        for i in range(randint(1, 6)):
+        iter = randint(1, 6)
+
+        for i in range(iter):
             for j in self.get_tilables(point, 1, True):
                 if j == point:
                     self.tile_up(j, 'center')
@@ -51,12 +54,13 @@ class Dungen:
 
             nexts = list(self.get_tilables(point, 3))
 
-            if nexts:
+            if nexts and i != iter - 1:
                 point = choice(nexts)
             else:
                 break
 
         self.brick_up()
+        self.room_num -= 1
 
     def sign(self, nbr):
         if not nbr:
@@ -82,35 +86,38 @@ class Dungen:
 
     def create_corridor(self, point1, point2):
         path = self.get_path(point1, point2)
+
         for i, j in enumerate(path):
-            if i == int((len(path)-1) / 2) and i != 1:
+            if j in self.get_tiles('wall'):
+                self.tiles[j] = 'door'
+            elif i == int((len(path)-1) / 2) and i != 1:
                 self.tiles[j] = 'center'
             else:
                 self.tiles[j] = 'floor'
 
-    def gen(self, room_num, cave=False):
-        point = (0, 0)
-        while room_num:
-            self.create_room(point)
+    def gen(self, room_num):
+        self.tiles.clear()
+        self.room_num = room_num
+        point1 = None
+
+        while self.room_num:
+            if not point1:
+                self.create_room((0, 0))
+
             nexts = None
-
             while not nexts:
-                fork = choice(list(self.get_tiles('center')))
-                if cave:
-                    corridor_len = randrange(4, 16, 2)
-                else:
-                    corridor_len = 4
-                nexts = list(self.get_tilables(fork, corridor_len))
+                point1 = choice(list(self.get_tiles('center')))
+                nexts = list(self.get_tilables(point1, 4))
 
-            point = choice(nexts)
-            if room_num > 1:
-                self.create_corridor(fork, point)
-            room_num -= 1
+            point2 = choice(nexts)
+            self.create_room(point2)
+
+            self.create_corridor(point1, point2)
 
         return self.tiles
 
 
 if __name__ == "__main__":
     viewer = Viewer()
-    dungeon = Dungen().gen(10, True)
+    dungeon = Dungen().gen(10)
     viewer.display(dungeon)
