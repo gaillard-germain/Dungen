@@ -39,26 +39,6 @@ class Dungen:
             for j in self.get_tilables(i, 1, True):
                 self.tiles[j] = 'wall'
 
-    def create_room(self, point):
-        iter = randint(1, 6)
-
-        for i in range(iter):
-            for j in self.get_tilables(point, 1, True):
-                if j == point:
-                    self.tiles[j] = 'center'
-                else:
-                    self.tiles[j] = 'floor'
-
-            nexts = list(self.get_tilables(point, 3))
-
-            if nexts and i != iter - 1:
-                point = choice(nexts)
-            else:
-                break
-
-        self.brick_up()
-        self.room_num -= 1
-
     def sign(self, nbr):
         if not nbr:
             return nbr
@@ -81,16 +61,35 @@ class Dungen:
 
         return path
 
+    def create_room(self, point):
+        iter = randint(1, 6)
+
+        for i in range(iter):
+            for j in self.get_tilables(point, 1, True):
+                if j == point:
+                    self.tiles[j] = 'center'
+                else:
+                    self.tiles[j] = 'floor'
+
+            nexts = list(self.get_tilables(point, 3))
+
+            if nexts and i != iter - 1:
+                point = choice(nexts)
+            else:
+                break
+
+        self.brick_up()
+        self.room_num -= 1
+
     def create_corridor(self, point1, point2):
         path = self.get_path(point1, point2)
+        walls = list(self.get_tiles('wall'))
 
-        for i, j in enumerate(path):
-            if j in self.get_tiles('wall'):
-                self.tiles[j] = 'door'
-            elif i == int((len(path)-1) / 2) and i != 1:
-                self.tiles[j] = 'center'
+        for i in path:
+            if i in walls:
+                self.tiles[i] = 'door'
             else:
-                self.tiles[j] = 'floor'
+                self.tiles[i] = 'floor'
 
     def gen(self, room_num):
         self.tiles.clear()
@@ -102,8 +101,10 @@ class Dungen:
                 self.create_room((0, 0))
 
             nexts = None
+            forks = list(self.get_tiles('center'))
+
             while not nexts:
-                point1 = choice(list(self.get_tiles('center')))
+                point1 = choice(forks)
                 nexts = list(self.get_tilables(point1, 4))
 
             point2 = choice(nexts)
@@ -115,6 +116,5 @@ class Dungen:
 
 
 if __name__ == "__main__":
-    viewer = Viewer()
     dungeon = Dungen().gen(10)
-    viewer.display(dungeon)
+    Viewer().display(dungeon)
