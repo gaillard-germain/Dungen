@@ -34,9 +34,6 @@ class Dungen:
                 if v == name:
                     yield k
 
-    def tile_up(self, point, name):
-        self.tiles[point] = name
-
     def brick_up(self):
         for i in list(self.get_tiles('wall', True)):
             for j in self.get_tilables(i, 1, True):
@@ -48,9 +45,9 @@ class Dungen:
         for i in range(iter):
             for j in self.get_tilables(point, 1, True):
                 if j == point:
-                    self.tile_up(j, 'center')
+                    self.tiles[j] = 'center'
                 else:
-                    self.tile_up(j, 'floor')
+                    self.tiles[j] = 'floor'
 
             nexts = list(self.get_tilables(point, 3))
 
