@@ -1,27 +1,16 @@
 from random import randint, choice
-from viewer import Viewer
+from time import time
+from tools import get_neighbors_range as get_neighbors
 
 
 class Dungen:
     def __init__(self):
         self.tiles = {}
         self.room_num = 0
-
-    def get_neighbors(self, point, gap, diag=False):
-        x, y = point
-
-        if diag:
-            for i in range(-gap, gap*2, gap):
-                for j in range(-gap, gap*2, gap):
-                    yield (x + j, y + i)
-        else:
-            for i in range(-gap, gap*2, gap):
-                yield (x+i, y)
-                if i:
-                    yield (x, y+i)
+        self.time = 0
 
     def get_tilables(self, point, gap, diag=False):
-        for point in self.get_neighbors(point, gap, diag):
+        for point in get_neighbors(point, gap, diag):
             if point not in self.tiles:
                 yield point
 
@@ -62,14 +51,13 @@ class Dungen:
         return path
 
     def create_room(self, point):
-        iter = randint(1, 6)
+        iter = randint(1, 9)
 
         for i in range(iter):
+            self.tiles[point] = 'center'
+
             for j in self.get_tilables(point, 1, True):
-                if j == point:
-                    self.tiles[j] = 'center'
-                else:
-                    self.tiles[j] = 'floor'
+                self.tiles[j] = 'floor'
 
             nexts = list(self.get_tilables(point, 3))
 
@@ -84,14 +72,19 @@ class Dungen:
     def create_corridor(self, point1, point2):
         path = self.get_path(point1, point2)
         walls = list(self.get_tiles('wall'))
+        count = 0
 
-        for i in path:
-            if i in walls:
-                self.tiles[i] = 'door'
+        for i, j in enumerate(path):
+            if j in walls and (count == 0 or i == len(path) - 2):
+                self.tiles[j] = 'door'
+                count += 1
             else:
-                self.tiles[i] = 'floor'
+                self.tiles[j] = 'floor'
 
-    def gen(self, room_num):
+        self.brick_up()
+
+    def gen(self, room_num, expanded=False):
+        t1 = time()
         self.tiles.clear()
         self.room_num = room_num
         point1 = None
@@ -105,16 +98,18 @@ class Dungen:
 
             while not nexts:
                 point1 = choice(forks)
-                nexts = list(self.get_tilables(point1, 4))
+                if expanded:
+                    nexts = list(self.get_tilables(
+                        point1, randint(4, 12), True))
+                else:
+                    nexts = list(self.get_tilables(point1, 4, True))
 
             point2 = choice(nexts)
             self.create_room(point2)
 
             self.create_corridor(point1, point2)
 
+        t2 = time()
+        self.time = t2 - t1
+
         return self.tiles
-
-
-if __name__ == "__main__":
-    dungeon = Dungen().gen(10)
-    Viewer().display(dungeon)
